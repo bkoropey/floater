@@ -1,0 +1,66 @@
+Option Explicit
+
+
+Sub Copy_EXCEL_columns()
+    Dim FD As FileDialog
+    Set FD = Application.FileDialog(msoFileDialogFilePicker)
+    Dim vrtSelectedItem As Variant
+    Dim objFSO As New FileSystemObject
+    Dim arrX As Variant
+    Dim i As Integer
+    Dim wb As Workbook
+    Dim startRow As Integer
+    Dim columnToRead As Integer
+    Dim colToRead As Integer
+    
+    Dim WS As Worksheet
+    
+    If Not (WorksheetExists("CopiedData")) Then
+        Set WS = Worksheets.Add(Type:=xlWorksheet)
+        With WS
+            .Name = "CopiedData"
+        End With
+    Else
+        Set WS = Worksheets("CopiedData")
+    End If
+    
+    'This refers to the eleventh row
+    startRow = 11
+    'This refers to column F
+    columnToRead = 5
+    'This refers to column G
+    colToRead = 6
+    'Clear the sheet
+    'Sheets(WS.Name).Cells.Clear
+    
+    Application.ScreenUpdating = False
+    With FD
+        If .Show = -1 Then
+            For Each vrtSelectedItem In .SelectedItems
+                
+               MsgBox objFSO.GetFileName(vrtSelectedItem)
+               Set wb = Workbooks.Open(objFSO.GetAbsolutePathName(vrtSelectedItem))
+               'Copy range to another workbook
+                Workbooks(objFSO.GetFileName(vrtSelectedItem)).Worksheets(1).Range("A2:D9").Copy _
+                Workbooks("ImportEXCEL.xlsm").Worksheets(WS.Name).Range("A2")
+    
+                wb.Close
+                Set wb = Nothing
+                
+            Next vrtSelectedItem
+        End If
+    End With
+    Application.ScreenUpdating = True
+End Sub
+
+Function WorksheetExists(shtName As String, Optional wb As Workbook) As Boolean
+    Dim sht As Worksheet
+
+    If wb Is Nothing Then Set wb = ThisWorkbook
+    On Error Resume Next
+    Set sht = wb.Sheets(shtName)
+    On Error GoTo 0
+    WorksheetExists = Not sht Is Nothing
+End Function
+
+
