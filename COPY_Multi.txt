@@ -1,0 +1,96 @@
+Option Explicit
+Sub Copy_Multi()
+    Dim Cnt As Long
+    Dim DestCell As Range
+    Dim FD As FileDialog
+    Dim WS As Worksheet
+    Dim objFSO As FileSystemObject
+    Dim wb As Workbook
+    Dim i As Integer
+    Dim j As Integer
+    Dim WSName As String
+    Dim WBName As String
+    Dim WSRange As String
+    Dim WS1 As Worksheet
+    
+   
+     If Not (WorksheetExists("CopiedSheet")) Then
+        Set WS = Worksheets.Add(Type:=xlWorksheet)
+        With WS
+            .Name = "CopiedSheet"
+        End With
+    Else
+        Set WS = Worksheets("CopiedSheet")
+    End If
+        
+    'Create a FileDialog object as a File Picker dialog box.
+    Set FD = Application.FileDialog(msoFileDialogFilePicker)
+    'Declare a variable to contain the path of each selected item.
+    Dim vrtSelectedItem As Variant
+    Set objFSO = New FileSystemObject
+    
+    Application.ScreenUpdating = False
+    'Use a With...End With block to reference the FileDialog object.
+    With FD
+    'Use the Show method to display the File Picker dialog box and return the user's action.
+    'The user pressed the button.
+        If .Show = -1 Then
+    
+    'Step through each string in the FileDialogSelectedItems collection.
+            For Each vrtSelectedItem In .SelectedItems
+    
+            MsgBox objFSO.GetFileName(vrtSelectedItem)
+    
+                Set wb = Workbooks.Open(objFSO.GetAbsolutePathName(vrtSelectedItem))
+                
+                 'Copy range to another workbook
+                
+                 j = 0
+                
+                WBName = objFSO.GetFileName(vrtSelectedItem)
+                'MsgBox WBName
+
+               
+                If (WBName = Trim(Workbooks("ImportCopiedSheetEXCEL.xlsm").Worksheets("MENU").Cells(28, "F"))) Then
+                
+                'this identifies which work book we are currently looking at and depending upon the workbook
+                ' we will identify which sheet
+                
+                WSName = Workbooks("ImportCopiedSheetEXCEL.xlsm").Worksheets("MENU").Cells(28, "E")
+                'MsgBox WSName
+                WSRange = Workbooks("ImportCopiedSheetEXCEL.xlsm").Worksheets("MENU").Cells(28, "D")
+                'MsgBox WSRange
+                Workbooks("ImportCopiedSheetEXCEL.xlsm").Worksheets(WS.Name).Cells(28, "A") = Workbooks("ImportCopiedSheetEXCEL.xlsm").Worksheets("MENU").Cells(28, "C")
+                 
+                Workbooks(WBName).Worksheets(Trim(WSName)).Range(Trim(WSRange)).Copy
+                                     
+                Workbooks("ImportCopiedSheetEXCEL.xlsm").Worksheets("CopiedSheet").Range("A1").PasteSpecial Paste:=xlPasteAll
+                
+                End If
+                
+                j = j + 1
+                
+             
+                
+                wb.Close
+                
+                Set wb = Nothing
+                
+            Next vrtSelectedItem
+                
+               
+            End If
+    End With
+    Set FD = Nothing
+    Application.ScreenUpdating = True
+End Sub
+
+Function WorksheetExists(shtName As String, Optional wb As Workbook) As Boolean
+    Dim sht As Worksheet
+
+    If wb Is Nothing Then Set wb = ThisWorkbook
+    On Error Resume Next
+    Set sht = wb.Sheets(shtName)
+    On Error GoTo 0
+    WorksheetExists = Not sht Is Nothing
+End Function
