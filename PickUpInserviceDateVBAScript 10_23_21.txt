@@ -1,0 +1,78 @@
+Dim i As Integer
+Dim j As Integer
+Dim lastCol As Integer
+Dim lastRow As Long
+Dim foundCol As Integer
+Dim inServiceDateFound As String
+Dim switch As Boolean
+Dim DateValue As Date
+
+Sub InServiceDate()
+
+lastRow = Sheets("CopiedSheet").Cells(rows.Count, 1).End(xlUp).Row
+lastCol = Sheets("CopiedSheet").Cells(1, Columns.Count).End(xlToLeft).Column
+
+'MsgBox ("lastRow" & lastRow)
+'MsgBox ("lastCol" & lastCol)
+
+For i = 2 To lastRow
+'MsgBox ("row" & i)
+
+switch = False
+
+    For j = 8 To lastCol        'note we start loop in column 8 where dates begin
+    'MsgBox ("col" & j)
+    
+    If WorksheetFunction.IfNa(Sheets("CopiedSheet").Cells(i, j), -1) = 0 Then
+        
+        If Sheets("CopiedSheet").Cells(i, j - 1) <> 0 Then
+            foundCol = j
+            
+            switch = True
+                
+        End If
+    
+    End If
+    
+    Next j
+    
+    If switch = True Then                                   'here we test if the last col does not correspond to in service date
+    
+        If Sheets("CopiedSheet").Cells(i, lastCol - 1) <> 0 Then
+            foundCol = lastCol - 1
+            inServiceDateFound = Sheets("CopiedSheet").Cells(1, foundCol)
+            DateValue = DateAdd("m", 1, inServiceDateFound)
+            inServiceDateFound = DateValue                  'because we added 1 month to the date so have to reset inServiceDateFound to date with 1 month added
+            Sheets("CopiedSheet").Cells(i, lastCol + 3) = inServiceDateFound
+            
+        Else
+        
+            inServiceDateFound = Sheets("CopiedSheet").Cells(1, foundCol)       'otherwise whatever foundCol is is-the-correct-date
+        
+            Sheets("CopiedSheet").Cells(i, lastCol + 3) = inServiceDateFound
+        
+        End If
+
+    Else
+    
+        foundCol = lastCol - 1
+    
+        inServiceDateFound = Sheets("CopiedSheet").Cells(1, foundCol)           'if all dates populated with corresponding values thus no switch required then make the inSrvcDate the last available value + 1 month
+        
+        DateValue = DateAdd("m", 1, inServiceDateFound)
+        
+        inServiceDateFound = DateValue                  'because we added 1 month to the date so have to reset inServiceDateFound to date with 1 month added
+        
+        Sheets("CopiedSheet").Cells(i, lastCol + 3) = inServiceDateFound
+
+    
+    End If
+
+Next i
+
+Sheets("CopiedSheet").Select
+Columns(lastCol + 3).Select
+
+
+
+End Sub
