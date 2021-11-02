@@ -1,0 +1,177 @@
+Dim i As Integer
+Dim j As Integer
+Dim lastCol As Integer
+Dim lastRow As Long
+Dim foundCol As Integer
+Dim inServiceDateFound As String
+Dim switch As Boolean
+Dim DateValue As Date
+Dim k As Long
+Dim colStart As Integer
+Dim startDate As String
+Dim status As Integer
+Dim foundStartDate As Long
+Dim firstDate As Date
+Dim secondDate As Date
+Dim m As Long
+Dim n As Integer
+
+Dim Total As Double
+Dim Percentile As Double
+Dim Cumulative As Double
+Dim Previous As Double
+
+Sub InSrvcDate_CumulativeCounter()
+lastRow = Sheets("CopiedSheet").Cells(rows.Count, 1).End(xlUp).Row
+lastCol = Sheets("CopiedSheet").Cells(1, Columns.Count).End(xlToLeft).Column
+colStart = Worksheets("MENU").Range("I3")
+Total = 0
+status = Worksheets("MENU").Range("J8")
+
+For i = 2 To lastRow
+    Total = 0
+    For j = colStart To lastCol     ' structure of for loop
+        If Sheets("CopiedSheet").Cells(1, j) >= Worksheets("MENU").Range("H6") And _
+            Sheets("CopiedSheet").Cells(1, j) <= Worksheets("MENU").Range("I6") Then  'loop to Cumulative Sum accross e/row & excludes non-dates (annual totals)
+                                                                                           ' we check dates in row 1 across all columns j but we
+            Total = Total + Sheets("CopiedSheet").Cells(i, j)
+                             
+        End If
+        
+        
+    
+    Next j
+        
+    For m = colStart To lastCol
+    
+        If Sheets("CopiedSheet").Cells(1, m) >= Worksheets("MENU").Range("H6") _
+            And Sheets("CopiedSheet").Cells(1, m) <= Worksheets("MENU").Range("I6") _
+            And IsDate(Sheets("CopiedSheet").Cells(1, m)) _
+            And IsDate(Sheets("CopiedSheet").Cells(1, m)) _
+            And status = 1 _
+            And WorksheetFunction.IsNumber(Worksheets("CopiedSheet").Cells(i, m)) = True Then
+          
+            foundStartDate = m
+            startDate = Worksheets("CopiedSheet").Cells(1, foundStartDate)
+            Worksheets("CopiedSheet").Cells(i, lastCol + 3) = startDate
+            Exit For
+             
+        ElseIf Sheets("CopiedSheet").Cells(1, m) >= Worksheets("MENU").Range("H6") And _
+            Sheets("CopiedSheet").Cells(1, m) <= Worksheets("MENU").Range("I6") And _
+            IsDate(Sheets("CopiedSheet").Cells(1, m)) _
+            And status = 0 _
+            And WorksheetFunction.IsNumber(Worksheets("CopiedSheet").Cells(i, m)) = True _
+            And Worksheets("CopiedSheet").Cells(i, m) > 0 Then
+            foundStartDate = m
+            startDate = Worksheets("CopiedSheet").Cells(1, foundStartDate)
+            Worksheets("CopiedSheet").Cells(i, lastCol + 3) = startDate
+          
+            Exit For
+        Else
+            'skip
+            
+        End If
+    
+    Next m
+        
+           '  MsgBox (Total)
+    Percentile = Total * Worksheets("MENU").Range("J6")
+    Worksheets("CopiedSheet").Cells(i, lastCol + 1) = Percentile
+            
+    Cumulative = 0
+    For k = colStart To lastCol
+        If Sheets("CopiedSheet").Cells(1, k) >= Worksheets("MENU").Range("H6") And _
+            Sheets("CopiedSheet").Cells(1, k) <= Worksheets("MENU").Range("I6") And _
+            IsDate(Sheets("CopiedSheet").Cells(1, k)) Then
+        
+            Previous = Cumulative                                       'record previous b/f calculating the new cumulative
+            Cumulative = Cumulative + Sheets("CopiedSheet").Cells(i, k)
+            
+            If Abs(Cumulative) > Abs(Percentile) And k <> colStart And Abs(Abs(Cumulative) - Abs(Percentile)) > Abs(Abs(Previous) - Abs(Percentile)) And IsDate(Worksheets("CopiedSheet").Cells(1, k - 1)) Then     'check to see if we exceeded the Percentile and if so then see if currentCol is closer to percentile than the previous col, then we pullBack the closest date
+                switch = True
+                foundCol = k - 1
+                                   
+                inServiceDateFound = Worksheets("CopiedSheet").Cells(1, foundCol)
+                Worksheets("CopiedSheet").Cells(i, lastCol + 2) = inServiceDateFound
+                Exit For
+                
+            ElseIf Abs(Cumulative) > Abs(Percentile) And k <> colStart And Abs(Abs(Cumulative) - Abs(Percentile)) > Abs(Abs(Previous) - Abs(Percentile)) And IsDate(Worksheets("CopiedSheet").Cells(1, k - 2)) Then
+                switch = True
+                foundCol = k - 2
+                                   
+                inServiceDateFound = Worksheets("CopiedSheet").Cells(1, foundCol)
+                Worksheets("CopiedSheet").Cells(i, lastCol + 2) = inServiceDateFound
+                Exit For
+                
+            ElseIf Abs(Cumulative) > Abs(Percentile) And k <> colStart And Abs(Abs(Cumulative) - Abs(Percentile)) <= Abs(Abs(Previous) - Abs(Percentile)) Then
+                switch = True
+                foundCol = k
+                          
+                inServiceDateFound = Worksheets("CopiedSheet").Cells(1, foundCol)
+                Worksheets("CopiedSheet").Cells(i, lastCol + 2) = inServiceDateFound
+                Exit For
+                
+            ElseIf Abs(Cumulative) > Abs(Percentile) And k = colStart _
+                And Abs(Abs(Cumulative) - Abs(Percentile)) > Abs(Abs(Previous) - Abs(Percentile)) Then  'if current col is too far-away from the percentile col then we use the previous col
+                switch = True
+                foundCol = k
+                inServiceDateFound = Worksheets("CopiedSheet").Cells(1, foundCol)
+                Worksheets("CopiedSheet").Cells(i, lastCol + 2) = inServiceDateFound
+                Exit For
+                
+            ElseIf Abs(Cumulative) > Abs(Percentile) And k = colStart _
+                And Abs(Abs(Cumulative) - Abs(Percentile)) <= Abs(Abs(Previous) - Abs(Percentile)) Then
+                switch = True
+                foundCol = k
+                inServiceDateFound = Worksheets("CopiedSheet").Cells(1, foundCol)
+                Worksheets("CopiedSheet").Cells(i, lastCol + 2) = inServiceDateFound
+                Exit For
+                
+                
+            ElseIf k = lastCol - 1 And Abs(Abs(Cumulative) - Abs(Percentile)) > Abs(Abs(Previous) - Abs(Percentile)) Then
+                foundCol = lastCol - 1
+                inServiceDateFound = Sheets("CopiedSheet").Cells(1, foundCol)
+                DateValue = DateAdd("m", 1, inServiceDateFound)
+                inServiceDateFound = DateValue                  'because we added 1 month to the date so have to reset inServiceDateFound to date with 1 month added
+                Sheets("CopiedSheet").Cells(i, lastCol + 2) = inServiceDateFound
+                              
+                Exit For
+                
+            ElseIf k = lastCol - 1 And Abs(Abs(Cumulative) - Abs(Percentile)) <= Abs(Abs(Previous) - Abs(Percentile)) Then
+                foundCol = lastCol - 1
+                inServiceDateFound = Sheets("CopiedSheet").Cells(1, foundCol)
+                DateValue = DateAdd("m", 1, inServiceDateFound)
+                inServiceDateFound = DateValue                  'because we added 1 month to the date so have to reset inServiceDateFound to date with 1 month added
+                Sheets("CopiedSheet").Cells(i, lastCol + 2) = inServiceDateFound
+                              
+                Exit For
+                
+                
+            End If
+        End If
+    Next k
+    
+    If IsDate(startDate) = True And IsDate(inServiceDateFound) = True Then
+        n = DateDiff("d", startDate, inServiceDateFound)
+        Sheets("CopiedSheet").Cells(i, lastCol + 4) = n
+    
+    End If
+        
+    
+Next i
+
+Sheets("CopiedSheet").Select
+Columns(lastCol + 2).Select
+
+End Sub
+
+
+
+
+
+
+
+
+
+
+
