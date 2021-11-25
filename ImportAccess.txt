@@ -1,0 +1,60 @@
+Private Sub cmdImport_Click()
+   ' Requires reference to Microsoft Office 11.0 Object Library.
+   Dim fDialog As FileDialog
+   Dim varFile As Variant
+
+   ' Clear listbox contents.
+   'Me.FileList.RowSource = ""
+
+   ' Set up the File Dialog.
+   Set fDialog = Application.FileDialog(msoFileDialogFilePicker)
+
+   With fDialog
+
+      .AllowMultiSelect = False
+      .Filters.Add "Excel File", "*.xls"
+      .Filters.Add "Excel File", "*.xlsx"
+
+      If .Show = True Then
+
+         'Loop through each file selected and add it to our list box.
+         For Each varFile In .SelectedItems
+         ' Label3.Caption = varFile
+
+         Const acImport = 0
+         'Const acSpreadsheetTypeExcel9 = 10
+
+         ''This gets the sheets to new tables
+         GetSheets varFile
+
+         Next
+         MsgBox ("Import data successful!")
+         End If
+End With
+End Sub
+
+
+Sub GetSheets(strFileName)
+   'Requires reference to the Microsoft Excel x.x Object Library
+
+   Dim objXL As New Excel.Application
+   Dim wkb As Excel.Workbook
+   Dim wks As Object
+
+   'objXL.Visible = True
+
+   Set wkb = objXL.Workbooks.Open(strFileName)
+
+   For Each wks In wkb.Worksheets
+      DoCmd.TransferSpreadsheet acImport, 10, _
+            "NewData", strFileName, True
+   Next
+
+   'Tidy up
+   wkb.Close
+   Set wkb = Nothing
+   objXL.Quit
+   Set objXL = Nothing
+
+End Sub
+
