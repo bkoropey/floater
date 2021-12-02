@@ -20,6 +20,8 @@ Dim WBSSQL As String
 Dim WBSarray(1000000) As Variant       'declare an array that holds wbs element large enough to hold a thousand
 Dim item As Variant
 Dim counter As Long
+Dim OrderCount As Double
+Dim TotalOrders As Double
 Dim weightedAvgTecoDates(10000000) As Variant     'large enough where e/unique wbs element ~currently 120 of them can hold up to 10000 dates
 Dim WBSDates(10000000) As Variant                'large enough to hold 1 million dates
 Dim i As Long
@@ -45,6 +47,14 @@ Dim WeightedAvgStartRow As Long
 Dim weightedAvgStartDates(10000000) As Variant
 Dim WBSStartDates(10000000) As Variant
 
+
+Private Sub convertquery_Click()
+    DoCmd.RunSQL "Delete * from Sheet1"
+    
+    CurrentDb.Execute "Insert Into Sheet1 Select Query1.* From Query1"
+    
+    
+End Sub
 
 Private Sub DeleteTable_Click()
  
@@ -107,7 +117,7 @@ Private Sub Run_AggregInSrvcDateByWBSelement_Click()
         'SQL = "select [WBS element], SUM([Value TranCurr]) AS [SumValueTranCurr], " _
         '& "MIN([TECO Date]) AS MIN, MAX([TECO Date]) AS MAX" _
         '& "FROM Query1  GROUP BY [WBS element], [TECO Date]  ORDER BY [TECO Date] "
-        SQL = "SELECT Query1.[WBS element], Sum(Query1.[Value TranCurr]) AS SumValueTranCurr, SUM(DURATION) As TotalDuration, Min(Query1.[TECO Date]) AS [MIN], Max(Query1.[TECO Date]) AS [MAX] FROM Query1 GROUP BY Query1.[WBS element] ORDER BY Min(Query1.[TECO Date]);"
+        SQL = "SELECT Query1.[WBS element], Sum(Query1.[Value TranCurr]) AS SumValueTranCurr, Count(Order) As orderCount, SUM(DURATION) As TotalDuration, Min(Query1.[TECO Date]) AS [MIN], Max(Query1.[TECO Date]) AS [MAX] FROM Query1 GROUP BY Query1.[WBS element] ORDER BY Min(Query1.[TECO Date]);"
         Set recordDates = CurrentDb.OpenRecordset(SQL)
         
         'SELECT Query1.[WBS element], Sum(Query1.[Value TranCurr]) AS SumValueTranCurr, Min(Query1.[TECO Date]) AS [MIN], Max(Query1.[TECO Date]) AS [MAX] FROM Query1 GROUP BY Query1.[WBS element] ORDER BY Min(Query1.[TECO Date]);
@@ -120,6 +130,7 @@ Private Sub Run_AggregInSrvcDateByWBSelement_Click()
         Erase WBSDates          'every iteration of outer loop is a different WBSelement so we need to start dates with an empty array
         total = 0
         totalDuration = 0
+        TotalOrders = 0
         
         If Not recordDates.EOF And Not recordDates.BOF Then
         
@@ -129,6 +140,7 @@ Private Sub Run_AggregInSrvcDateByWBSelement_Click()
                 Duration = recordDates.Fields("TotalDuration")
                 MIN = recordDates.Fields("MIN")
                 MAX = recordDates.Fields("MAX")
+                OrderCount = recordDates.Fields("orderCount")
                 
                 If k = 0 Then
                     MINDate = recordDates.Fields("MIN")
@@ -149,7 +161,7 @@ Private Sub Run_AggregInSrvcDateByWBSelement_Click()
                     
                     total = total + ValueTranCurr
                     totalDuration = totalDuration + Duration
-                    
+                    TotalOrders = TotalOrders + OrderCount
                     k = k + 1
                    
                 End If
@@ -192,8 +204,8 @@ Private Sub Run_AggregInSrvcDateByWBSelement_Click()
                 AvgValueTranCurr = total
                 AvgDuration = totalDuration
             Else
-                AvgValueTranCurr = total / k
-                AvgDuration = totalDuration / k
+                AvgValueTranCurr = total / TotalOrders
+                AvgDuration = totalDuration / TotalOrders
             End If
 
             If total = 0 Then
