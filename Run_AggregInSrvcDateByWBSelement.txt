@@ -1,0 +1,194 @@
+
+Private Sub Run_AggregInSrvcDateByWBSelement_Click()
+ 
+    WBSSQL = "select distinct [WBS element] FROM Query1 GROUP BY [WBS element] ORDER BY [WBS element] DESC"      'select all distinct WBS element names
+    Set recordS = CurrentDb.OpenRecordset(WBSSQL)
+    counter = 0
+    i = 0
+     
+    If Not (recordS.EOF And recordS.BOF) Then
+    Do Until recordS.EOF = True
+        If IsEmpty(Trim(recordS.Fields("WBS element"))) Or Trim(recordS.Fields("WBS element")) = vbNullString Then
+        'Do Nothing
+        Else
+        
+        WBSarray(counter) = recordS.Fields("WBS element")
+        
+        End If
+        
+        'MsgBox ("WBSarray(counter) : " & WBSarray(counter))
+        counter = counter + 1                               'so by time loop done running the WBS element will have all of its WBS element names stored into the WBS array
+    
+        recordS.MoveNext
+    
+    Loop
+        
+    End If
+    
+    recordS.Close
+    Set recordS = Nothing
+    
+    'MsgBox ("counter: " & counter)
+    
+        row = 1
+        
+        j = 0
+        m = 0
+        
+        
+        
+    For z = 0 To counter
+        'SQL = "select [WBS element], SUM([Value TranCurr]) AS [SumValueTranCurr], " _
+        '& "MIN([TECO Date]) AS MIN, MAX([TECO Date]) AS MAX" _
+        '& "FROM Query1  GROUP BY [WBS element], [TECO Date]  ORDER BY [TECO Date] "
+        SQL = "SELECT Query1.[WBS element], Sum(Query1.[Value TranCurr]) AS SumValueTranCurr, Count(Order) As orderCount, SUM(DURATION) As TotalDuration, Min(Query1.[TECO Date]) AS [MIN], Max(Query1.[TECO Date]) AS [MAX] FROM Query1 GROUP BY Query1.[WBS element] ORDER BY Min(Query1.[TECO Date]);"
+        Set recordDates = CurrentDb.OpenRecordset(SQL)
+        
+        'SELECT Query1.[WBS element], Sum(Query1.[Value TranCurr]) AS SumValueTranCurr, Min(Query1.[TECO Date]) AS [MIN], Max(Query1.[TECO Date]) AS [MAX] FROM Query1 GROUP BY Query1.[WBS element] ORDER BY Min(Query1.[TECO Date]);
+        
+        SQLTECO = "select [WBS element], [Start work date], [TECO Date], [Value TranCurr]" _
+        & "FROM Query1     ORDER BY [WBS element] DESC, [TECO Date] ASC"
+        Set TECORecords = CurrentDb.OpenRecordset(SQLTECO)
+        
+        k = 0
+        Erase WBSDates          'every iteration of outer loop is a different WBSelement so we need to start dates with an empty array
+        total = 0
+        totalDuration = 0
+        TotalOrders = 0
+        
+        If Not recordDates.EOF And Not recordDates.BOF Then
+        
+            Do Until recordDates.EOF = True
+                WBSelement = recordDates.Fields("WBS element")
+                ValueTranCurr = recordDates.Fields("SumValueTranCurr")
+                Duration = recordDates.Fields("TotalDuration")
+                MIN = recordDates.Fields("MIN")
+                MAX = recordDates.Fields("MAX")
+                OrderCount = recordDates.Fields("orderCount")
+                
+                If k = 0 Then
+                    MINDate = recordDates.Fields("MIN")
+                    MAXDate = recordDates.Fields("MAX")
+                   
+                End If
+                
+                'MsgBox ("WBSarray(row - 1) : " & WBSarray(row - 1))
+                'MsgBox ("WBSelement: " & WBSelement)
+                If WBSarray(row - 1) = WBSelement Then
+                    If MIN < MINDate Then
+                        MINDate = MIN
+                    End If
+                    
+                    If MAX > MAXDate Then
+                        MAXDate = MAX
+                    End If
+                    
+                    total = total + ValueTranCurr
+                    totalDuration = totalDuration + Duration
+                    TotalOrders = TotalOrders + OrderCount
+                    k = k + 1
+                   
+                End If
+                
+                recordDates.MoveNext            'this advances the cursor & the record Set to next row
+               
+            Loop
+              
+            p = 0
+            weightedAvg = 0
+            
+          
+            
+            Do Until TECORecords.EOF = True
+                WBSelementTeco = TECORecords.Fields("WBS element")
+                TecoDate = TECORecords.Fields("TECO Date")
+                ValueTranCurr = TECORecords.Fields("Value TranCurr")
+                StartDate = TECORecords.Fields("Start work date")
+                
+                If WBSelementTeco = WBSarray(z) Then
+                    'MsgBox ("WBSElementTeco" & WBSelementTeco)
+                    'MsgBox ("item" & item)
+                    WBSDates(p) = TecoDate    'we record the date of the row in the array to pull the element of the array into the row with the tecoDate
+                    WBSStartDates(p) = StartDate
+                    weightedAvg = weightedAvg + ((p + 1) * ValueTranCurr)    'starting from row 1 we multiply row# by total
+                                                                             'tracks # of elements for e/WBS element
+                End If
+                
+                TECORecords.MoveNext
+                p = p + 1
+                
+            Loop
+            'MsgBox ("k: " & k)
+            'MsgBox ("weightedAvg: " & weightedAvg)
+            'MsgBox ("total: " & total)
+            'MsgBox ("NewTotal: " & NewTotal)
+            On Error Resume Next
+            
+            If k = 0 Then
+                AvgValueTranCurr = total
+                AvgDuration = totalDuration
+            Else
+                AvgValueTranCurr = total / TotalOrders
+                AvgDuration = totalDuration / TotalOrders
+            End If
+
+            If total = 0 Then
+                weightedAvgTecoRow = 1
+            Else
+                weightedAvgTecoRow = CLng(Round(weightedAvg / total))    'IndexDateOfWeightedAvg _ divided sum of row * total divided by total to get identify which row has the weighted avg to be able to pull the date corresponding to that row
+            End If
+            
+            If weightedAvgTecoRow < 1 Then
+                weightedAvgTecoRow = 1
+            End If
+            
+            'MsgBox ("weightedAvgTecoRow: " & Round(weightedAvgTecoRow))
+            weightedAvgTecoDates(m) = WBSDates(CLng(Round(weightedAvgTecoRow) - 1))  'IndexDateOfWeightedAvg _ pull the dates from that index & added it to another array which has all the weightedAvgTecoDates
+            weightedAvgStartDates(m) = WBSStartDates(CLng(Round(weightedAvgTecoRow) - 1))
+            'MsgBox (weightedAvgTecoDates(m))
+            
+        End If
+    
+        'MsgBox (m)
+        'MsgBox (WBSarray(m))
+        ' WBSarray (m) & "', '" & weightedAvgTecoDates(m) & "');"
+         
+        'MsgBox (SQL)
+         
+        'SQL = "insert into RESULTS([WBS element], WeightedAvgTecoDate, SUM_ValueTranCurr, MIN_Date, MAX_Date) Values " & _
+        '"('" & WBSarray(m) & "', '" & weightedAvgTecoDates(m) & "', '" & total & "', '" & MINDate & "', '" & MAXDate & "');"
+        'CurrentDb.Execute SQL, dbFailOnError
+        
+        SQL = "insert into RESULTS([WBS element], WeightedAvgTecoDate, [WeightedAvgStartDate], SUMValueTranCurr, AvgValueTranCurr, SumDuration, AvgDuration, MINDate, MAXDate) Values " & _
+        "('" & WBSarray(m) & "', '" & weightedAvgTecoDates(m) & "', '" & weightedAvgStartDates(m) & "', '" & total & "', '" & AvgValueTranCurr & "', '" & totalDuration & "', '" & AvgDuration & "', '" & MINDate & "', '" & MAXDate & "');"
+        CurrentDb.Execute SQL, dbFailOnError
+
+                    
+
+        i = i + 1
+        row = row + 1
+        m = m + 1
+        
+               
+        
+        recordDates.Close
+        Set recordDates = Nothing
+        
+        TECORecords.Close
+        Set TECORecords = Nothing
+        
+    Next
+   
+            
+End Sub
+
+
+
+
+
+
+
+
+
+
+
