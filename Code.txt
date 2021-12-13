@@ -1,0 +1,312 @@
+Option Compare Database
+
+Dim SQL As String
+Dim SQLString As String
+Dim recordS As Recordset
+Dim recordDates As Recordset
+Dim order As String
+Dim WBSelement As String
+Dim ValueTranCurr As Double
+Dim TecoDate As String
+Dim StartDate As String
+Dim Company As String
+Dim Cat As String
+Dim ProjectDefinition As String
+Dim total As Double
+Dim row As Long
+Dim weightedAvg As Double
+Dim weightedAvgTecoRow As Long
+Dim WBSSQL As String
+Dim WBSarray(1000000) As Variant       'declare an array that holds wbs element large enough to hold a thousand
+Dim item As Variant
+Dim counter As Long
+Dim OrderCount As Double
+Dim TotalOrders As Double
+Dim weightedAvgTecoDates(1000000) As Variant     'large enough where e/unique wbs element ~currently 120 of them can hold up to 10000 dates
+Dim WBSDates(1000000) As Variant                'large enough to hold 1 million dates
+Dim i As Long
+Dim j As Long
+Dim k As Long
+Dim m As Variant
+Dim n As Long
+Dim p As Long
+Dim z As Long
+Dim MIN As String
+Dim MAX As String
+Dim MINDate As String
+Dim MAXDate As String
+Dim SQLTECO As String
+Dim TECORecords As Recordset
+Dim WBSelementTeco As String
+Dim NewTotal As Double
+Dim AvgValueTranCurr As Double
+Dim Duration As Double
+Dim totalDuration As Double
+Dim AvgDuration As Double
+Dim WeightedAvgStartRow As Long
+Dim weightedAvgStartDates(10000000) As Variant
+Dim WBSStartDates(10000000) As Variant
+Dim weightedAvg_START As Double
+Dim SQLTECO_START As String
+Dim TECORecords_START As Recordset
+Dim WeightedAvgValueTranCurr As Double
+Dim Sum_Weights As Double
+
+
+Private Sub convertquery_Click()
+    DoCmd.RunSQL "Delete * from ByAllOrders"
+    
+    CurrentDb.Execute "Insert Into ByAllOrders Select ByAllOrders.* From ByAllOrders"
+    
+    
+End Sub
+
+Private Sub DeleteTable_Click()
+ 
+    Dim tableName As String
+    tableName = "RESULTS"
+
+    If Not IsNull(DLookup("Name", "MSysObjects", "Name='" & tableName & "'")) Then
+        DoCmd.SetWarnings False
+        DoCmd.Close acTable, tableName, acSaveYes
+        DoCmd.DeleteObject acTable = acDefault, tableName
+        Debug.Print "Table" & tableName & "deleted..."
+        DoCmd.SetWarnings True
+    End If
+    
+    DoCmd.Rename "RESULTS", acTable, "Copy Of RESULTS"
+    DoCmd.CopyObject , "Copy Of RESULTS", acTable, "RESULTS"
+
+End Sub
+
+
+Private Sub Run_AggregInSrvcDateByWBSelement_Click()
+ 
+    WBSSQL = "select distinct [WBS element] FROM ByAllOrders GROUP BY [WBS element] ORDER BY [WBS element] DESC"      'select all distinct WBS element names
+    Set recordS = CurrentDb.OpenRecordset(WBSSQL)
+    counter = 0
+    i = 0
+     
+    If Not (recordS.EOF And recordS.BOF) Then
+    Do Until recordS.EOF = True
+        If IsEmpty(Trim(recordS.Fields("WBS element"))) Or Trim(recordS.Fields("WBS element")) = vbNullString Then
+        'Do Nothing
+        Else
+        
+        WBSarray(counter) = recordS.Fields("WBS element")
+        
+        End If
+        
+        'MsgBox ("WBSarray(counter) : " & WBSarray(counter))
+        counter = counter + 1                               'so by time loop done running the WBS element will have all of its WBS element names stored into the WBS array
+    
+        recordS.MoveNext
+    
+    Loop
+        
+    End If
+    
+    recordS.Close
+    Set recordS = Nothing
+    
+    'MsgBox ("counter: " & counter)
+    
+        row = 1
+        
+        j = 0
+        m = 0
+        
+        
+        
+    For z = 0 To counter
+        'SQL = "select [WBS element], SUM([Value TranCurr]) AS [SumValueTranCurr], " _
+        '& "MIN([TECO Date]) AS MIN, MAX([TECO Date]) AS MAX" _
+        '& "FROM ByAllOrders  GROUP BY [WBS element], [TECO Date]  ORDER BY [TECO Date] "
+        SQL = "SELECT ByAllOrders.[WBS element], Sum(ByAllOrders.[Value TranCurr]) AS SumValueTranCurr, Count(Order) As orderCount, SUM(DURATION) As TotalDuration, Min(ByAllOrders.[TECO Date]) AS [MIN], Max(ByAllOrders.[TECO Date]) AS [MAX] FROM ByAllOrders GROUP BY ByAllOrders.[WBS element];"
+        Set recordDates = CurrentDb.OpenRecordset(SQL)
+        
+        'SELECT ByAllOrders.[WBS element], Sum(ByAllOrders.[Value TranCurr]) AS SumValueTranCurr, Min(ByAllOrders.[TECO Date]) AS [MIN], Max(ByAllOrders.[TECO Date]) AS [MAX] FROM ByAllOrders GROUP BY ByAllOrders.[WBS element] ORDER BY Min(ByAllOrders.[TECO Date]);
+        
+        SQLTECO = "select [WBS element], [TECO Date], [Value TranCurr]" _
+        & "FROM ByAllOrders     ORDER BY [WBS element] DESC, [TECO Date] ASC;"
+        Set TECORecords = CurrentDb.OpenRecordset(SQLTECO)
+        
+        SQLTECO_START = "select [WBS element], [Start work date], [Value TranCurr]" _
+        & "FROM ByAllOrders     ORDER BY [WBS element] DESC, [Start work date] ASC;"
+        Set TECORecords_START = CurrentDb.OpenRecordset(SQLTECO_START)
+        
+        k = 0
+        Erase WBSDates          'every iteration of outer loop is a different WBSelement so we need to start dates with an empty array
+        total = 0
+        totalDuration = 0
+        TotalOrders = 0
+        
+        If Not recordDates.EOF And Not recordDates.BOF Then
+        
+            Do Until recordDates.EOF = True
+                WBSelement = recordDates.Fields("WBS element")
+                ValueTranCurr = recordDates.Fields("SumValueTranCurr")
+                Duration = recordDates.Fields("TotalDuration")
+                MIN = recordDates.Fields("MIN")
+                MAX = recordDates.Fields("MAX")
+                OrderCount = recordDates.Fields("orderCount")
+                
+                If k = 0 Then
+                    MINDate = recordDates.Fields("MIN")
+                    MAXDate = recordDates.Fields("MAX")
+                   
+                End If
+                
+                'MsgBox ("WBSarray(row - 1) : " & WBSarray(row - 1))
+                'MsgBox ("WBSelement: " & WBSelement)
+                If WBSarray(row - 1) = WBSelement Then
+                    If MIN < MINDate Then
+                        MINDate = MIN
+                    End If
+                    
+                    If MAX > MAXDate Then
+                        MAXDate = MAX
+                    End If
+                    
+                    total = total + ValueTranCurr
+                    totalDuration = totalDuration + Duration
+                    TotalOrders = TotalOrders + OrderCount
+                    k = k + 1
+                   
+                End If
+                
+                recordDates.MoveNext            'this advances the cursor & the record Set to next row
+               
+            Loop
+              
+            p = 0
+            weightedAvg = 0
+            weightedAvg_START = 0
+            Sum_Weights = 0
+          
+            
+            Do Until TECORecords.EOF = True
+                WBSelementTeco = TECORecords.Fields("WBS element")
+                TecoDate = TECORecords.Fields("TECO Date")
+                ValueTranCurr = TECORecords.Fields("Value TranCurr")
+                
+                If WBSelementTeco = WBSarray(z) Then
+                    WBSDates(p) = TecoDate    'we record the date of the row in the array to pull the element of the array into the row with the tecoDate
+
+                    weightedAvg = weightedAvg + ((p + 1) * ValueTranCurr)    'starting from row 1 we multiply row# by total
+                                                                             'tracks # of elements for e/WBS element
+                    p = p + 1
+                    Sum_Weights = Sum_Weights + p
+                    
+                End If
+                
+                TECORecords.MoveNext
+                
+                
+            Loop
+            
+            p = 0
+            
+            Do Until TECORecords_START.EOF = True
+                WBSelementTeco = TECORecords_START.Fields("WBS element")
+                ValueTranCurr = TECORecords_START.Fields("Value TranCurr")
+                StartDate = TECORecords_START.Fields("Start work date")
+                
+                If WBSelementTeco = WBSarray(z) Then
+                    WBSStartDates(p) = StartDate
+                    weightedAvg_START = weightedAvg_START + ((p + 1) * ValueTranCurr)    'starting from row 1 we multiply row# by total
+                                                                             'tracks # of elements for e/WBS element
+                    p = p + 1
+                End If
+                
+                TECORecords_START.MoveNext
+                
+            Loop
+            
+            On Error Resume Next
+            
+            If k = 0 Then
+                AvgValueTranCurr = total
+                AvgDuration = totalDuration
+            Else
+                AvgValueTranCurr = total / TotalOrders
+                AvgDuration = totalDuration / TotalOrders
+            End If
+
+            If total = 0 Then
+                weightedAvgTecoRow = 1
+                WeightedAvgStartRow = 1
+            Else
+                weightedAvgTecoRow = CLng(weightedAvg / total)    'IndexDateOfWeightedAvg _ divided sum of row * total divided by total to get identify which row has the weighted avg to be able to pull the date corresponding to that row
+                WeightedAvgStartRow = CLng(weightedAvg_START / total)
+            End If
+            
+            If weightedAvgTecoRow < 1 Then
+                weightedAvgTecoRow = 1
+            End If
+            
+            If WeightedAvgStartRow < 1 Then
+                WeightedAvgStartRow = 1
+            End If
+            
+            If Sum_Weights = 0 Then
+                WeightedAvgValueTranCurr = 0
+            Else
+                WeightedAvgValueTranCurr = weightedAvg / Sum_Weights
+            End If
+            
+            'MsgBox ("weightedAvgTecoRow: " & Round(weightedAvgTecoRow))
+            weightedAvgTecoDates(m) = WBSDates(weightedAvgTecoRow)  'IndexDateOfWeightedAvg _ pull the dates from that index & added it to another array which has all the weightedAvgTecoDates
+            weightedAvgStartDates(m) = WBSStartDates(WeightedAvgStartRow)
+            'MsgBox (weightedAvgTecoDates(m))
+            
+        End If
+    
+        'MsgBox (m)
+        'MsgBox (WBSarray(m))
+        ' WBSarray (m) & "', '" & weightedAvgTecoDates(m) & "');"
+         
+        'MsgBox (SQL)
+         
+        'SQL = "insert into RESULTS([WBS element], WeightedAvgTecoDate, SUM_ValueTranCurr, MIN_Date, MAX_Date) Values " & _
+        '"('" & WBSarray(m) & "', '" & weightedAvgTecoDates(m) & "', '" & total & "', '" & MINDate & "', '" & MAXDate & "');"
+        'CurrentDb.Execute SQL, dbFailOnError
+        
+        SQL = "insert into RESULTS([WBS element], WeightedAvgTecoDate, [WeightedAvgStartDate], SUMValueTranCurr, AvgValueTranCurr, SumDuration, AvgDuration, MINDate, MAXDate, WeightedAvgValueTranCurr, OrderCount) Values " & _
+        "('" & WBSarray(m) & "', '" & weightedAvgTecoDates(m) & "', '" & weightedAvgStartDates(m) & "', '" & total & "', '" & AvgValueTranCurr & "', '" & totalDuration & "', '" & AvgDuration & "', '" & MINDate & "', '" & MAXDate & "', '" & WeightedAvgValueTranCurr & "', '" & TotalOrders & "');"
+        CurrentDb.Execute SQL, dbFailOnError
+
+                    
+
+        i = i + 1
+        row = row + 1
+        m = m + 1
+        
+               
+        
+        recordDates.Close
+        Set recordDates = Nothing
+        
+        TECORecords.Close
+        Set TECORecords = Nothing
+        
+        TECORecords_START.Close
+        Set TECORecords_START = Nothing
+        
+    Next
+   
+            
+End Sub
+
+
+
+
+
+
+
+
+
+
+
+
+
