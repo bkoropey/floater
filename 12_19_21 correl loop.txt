@@ -1,0 +1,550 @@
+Option Compare Database
+
+Dim SQL As String
+Dim SQLString As String
+Dim recordS As Recordset
+Dim recordDates As Recordset
+Dim order As String
+Dim WBSelement As String
+Dim ValueTranCurr As Double
+Dim TecoDate As String
+Dim StartDate As String
+Dim Company As String
+Dim Cat As String
+Dim ProjectDefinition As String
+Dim total As Double
+Dim row As Long
+Dim weightedAvg As Double
+Dim weightedAvgTecoRow As Long
+Dim WBSSQL As String
+Dim WBSarray(1000000) As Variant       'declare an array that holds wbs element large enough to hold a thousand
+Dim item As Variant
+Dim counter As Long
+Dim OrderCount As Double
+Dim TotalOrders As Double
+Dim weightedAvgTecoDates(1000000) As Variant     'large enough where e/unique wbs element ~currently 120 of them can hold up to 10000 dates
+Dim WBSDates(1000000) As Variant                'large enough to hold 1 million dates
+Dim i As Long
+Dim j As Long
+Dim k As Long
+Dim m As Variant
+Dim n As Long
+Dim p As Long
+Dim z As Long
+Dim MIN As String
+Dim MAX As String
+Dim MINDate As String
+Dim MAXDate As String
+Dim SQLTECO As String
+Dim TECORecords As Recordset
+Dim WBSelementTeco As String
+Dim NewTotal As Double
+Dim AvgValueTranCurr As Double
+Dim Duration As Double
+Dim totalDuration As Double
+Dim AvgDuration As Double
+Dim WeightedAvgStartRow As Long
+Dim weightedAvgStartDates(1000000) As Variant
+Dim WBSStartDates(1000000) As Variant
+Dim weightedAvg_START As Double
+Dim SQLTECO_START As String
+Dim TECORecords_START As Recordset
+Dim WeightedAvgValueTranCurr As Double
+Dim Sum_Weights As Double
+Dim recordCorrel As Recordset
+Dim recordSCorrel As Recordset
+Dim Correlation As Double
+Dim MyCheck As Boolean
+
+
+Private Sub CorrelLoop_Click()
+
+WBSSQL = "select distinct [WBS element] FROM ByAllOrders GROUP BY [WBS element] ORDER BY [WBS element] DESC"      'select all distinct WBS element names
+    Set recordS = CurrentDb.OpenRecordset(WBSSQL)
+    counter = 0
+    i = 0
+     
+    If Not (recordS.EOF And recordS.BOF) Then
+    Do Until recordS.EOF = True
+        If IsEmpty(Trim(recordS.Fields("WBS element"))) Or Trim(recordS.Fields("WBS element")) = vbNullString Then
+        'Do Nothing
+        Else
+        
+        WBSarray(counter) = recordS.Fields("WBS element")
+       
+        End If
+        
+        'MsgBox ("WBSarray(counter) : " & WBSarray(counter))
+        counter = counter + 1                               'so by time loop done running the WBS element will have all of its WBS element names stored into the WBS array
+    
+        recordS.MoveNext
+    
+    Loop
+        
+    End If
+
+    recordS.Close
+    Set recordS = Nothing
+    
+    For z = 0 To counter
+        
+        WBSelement = WBSarray(z)
+                       'this runs the query
+        i = 0
+        SQL = "SELECT [1_DurationAllOrders(Sheet1-KOK5)TABLE].[WBS element], [1_DurationAllOrders(Sheet1-KOK5)TABLE].[Start work date], [1_DurationAllOrders(Sheet1-KOK5)TABLE].[TECO Date], [1_DurationAllOrders(Sheet1-KOK5)TABLE].[Technical completion], [1_DurationAllOrders(Sheet1-KOK5)TABLE].[Value TranCurr], [1_DurationAllOrders(Sheet1-KOK5)TABLE].Order, [1_DurationAllOrders(Sheet1-KOK5)TABLE].Company, [1_DurationAllOrders(Sheet1-KOK5)TABLE].[Company Code], [1_DurationAllOrders(Sheet1-KOK5)TABLE].DURATION, [1_DurationAllOrders(Sheet1-KOK5)TABLE].Description, [1_DurationAllOrders(Sheet1-KOK5)TABLE].[Business Area]" _
+        & " FROM [1_DurationAllOrders(Sheet1-KOK5)TABLE]" _
+        & " WHERE ((([1_DurationAllOrders(Sheet1-KOK5)TABLE].[WBS element])= '" & WBSelement & "')); "
+        Set recordSCorrel = CurrentDb.OpenRecordset(SQL)
+                
+        Do Until recordSCorrel.EOF = True
+            
+            i = i + 1
+            
+            AvgValueTranCurr = recordSCorrel.Fields("Value TranCurr")
+            Duration = recordSCorrel.Fields("Duration")
+            SQL = "INSERT INTO CorrelTable ([Value TranCurr], Duration) values('" & AvgValueTranCurr & "', '" & Duration & "')"
+            CurrentDb.Execute SQL, dbFailOnError
+            recordSCorrel.MoveNext
+            
+        Loop
+        
+        recordSCorrel.Close
+        Set recordSCorrel = Nothing
+                
+        SQL = "SELECT (Avg ([Value TranCurr] * DURATION) - Avg([Value TranCurr]) * Avg(DURATION)) / (StDevP([Value TranCurr]) * StDevP(DURATION)) AS Correl" _
+        & " FROM CorrelTable;"
+        Set recordCorrel = CurrentDb.OpenRecordset(SQL)
+        
+        'MsgBox ("Count: " & Count)
+        If i >= 2 Then   'if there is more than 1 row of data then can do the correl b/w duration & ValueTranCurr otherwise can not get correl
+            MyCheck = False
+            
+            Do Until recordCorrel.EOF = True
+                On Error Resume Next
+                Correlation = Round(recordCorrel.Fields("Correl"), 4)
+                MyCheck = IsError(recordCorrel.Fields("Correl"))
+                If MyCheck = True Then
+                    Correlation = "DoesNotExist"
+                End If
+                SQL = "INSERT INTO CorrelTableResults(WBSElement, Correlation) values('" & WBSelement & "', '" & Correlation & "')"
+                CurrentDb.Execute SQL, dbFailOnError
+                recordCorrel.MoveNext
+            Loop
+
+        Else
+                SQL = "INSERT INTO CorrelTableResults(WBSElement, Correlation) values('" & WBSelement & "', '" & "DoesNotExist" & "')"
+                CurrentDb.Execute SQL, dbFailOnError
+        End If
+        
+        recordCorrel.Close
+        Set recordCorrel = Nothing
+        
+        'MsgBox ("Iteration#" & z)
+        DoCmd.RunSQL "Delete * from CorrelTable"
+        
+    Next z
+
+End Sub
+
+'Private Sub convertqueryToByAllOrdersTable_Click()
+'    DoCmd.RunSQL "Delete * from ByAllOrders"
+    
+'    CurrentDb.Execute "Insert Into ByAllOrders Select ByAllOrdersForTable.* From ByAllOrdersForTable"
+ 
+'End Sub
+
+
+Private Sub Import_Click()
+  ' Requires reference to Microsoft Office 16.0 Object Library.
+   Dim fDialog As FileDialog
+   Dim varFile As Variant
+
+   ' Clear listbox contents.
+   'Me.FileList.RowSource = ""
+
+   ' Set up the File Dialog.
+   Set fDialog = Application.FileDialog(msoFileDialogFilePicker)
+
+   With fDialog
+
+      .AllowMultiSelect = False
+      .Filters.Add "Excel File", "*.xlsx"
+      .Filters.Add "Excel File", "*.xls"
+
+      If .Show = True Then
+
+         'Loop through each file selected and add it to our list box.
+         For Each varFile In .SelectedItems
+         ' Label3.Caption = varFile
+
+         Const acImport = 0
+         'Const acSpreadsheetTypeExcel9 = 10
+
+         ''This gets the sheets to new tables
+
+
+         GetSheets varFile
+
+         Next
+         MsgBox ("Import data successful!")
+         End If
+End With
+
+End Sub
+
+
+Sub GetSheets(strFileName)
+   'Requires reference to the Microsoft Excel x.x Object Library
+
+   Dim objXL As New Excel.Application
+   Dim wkb As Excel.Workbook
+   Dim wks As Object
+
+   'objXL.Visible = True
+
+   Set wkb = objXL.Workbooks.Open(strFileName)
+
+   For Each wks In wkb.Worksheets
+      DoCmd.TransferSpreadsheet acImport, 10, _
+            "NewData", strFileName, True
+   Next
+
+   'Tidy up
+   wkb.Close
+   Set wkb = Nothing
+   objXL.Quit
+   Set objXL = Nothing
+
+
+
+
+
+End Sub
+
+Private Sub RemoveCorrelTableResults_Click()
+
+    Dim tableName As String
+    tableName = "CorrelTableResults"
+
+    If Not IsNull(DLookup("Name", "MSysObjects", "Name='" & tableName & "'")) Then
+        DoCmd.SetWarnings False
+        DoCmd.Close acTable, tableName, acSaveYes
+        DoCmd.DeleteObject acTable = acDefault, tableName
+        Debug.Print "Table" & tableName & "deleted..."
+        DoCmd.SetWarnings True
+    End If
+    
+    DoCmd.Rename "CorrelTableResults", acTable, "Copy Of CorrelTableResults"
+    DoCmd.CopyObject , "Copy Of CorrelTableResults", acTable, "CorrelTableResults"
+
+
+End Sub
+
+Private Sub RemoveTable_Click()
+
+
+ 
+    Dim tableName As String
+    tableName = "RESULTS"
+
+    If Not IsNull(DLookup("Name", "MSysObjects", "Name='" & tableName & "'")) Then
+        DoCmd.SetWarnings False
+        DoCmd.Close acTable, tableName, acSaveYes
+        DoCmd.DeleteObject acTable = acDefault, tableName
+        Debug.Print "Table" & tableName & "deleted..."
+        DoCmd.SetWarnings True
+    End If
+    
+    DoCmd.Rename "RESULTS", acTable, "Copy Of RESULTS"
+    DoCmd.CopyObject , "Copy Of RESULTS", acTable, "RESULTS"
+
+
+
+End Sub
+
+Private Sub Run_AggregInSrvcDateByWBSelement_Click()
+ 
+    WBSSQL = "select distinct [WBS element] FROM ByAllOrders GROUP BY [WBS element] ORDER BY [WBS element] DESC"      'select all distinct WBS element names
+    Set recordS = CurrentDb.OpenRecordset(WBSSQL)
+    counter = 0
+    i = 0
+     
+    If Not (recordS.EOF And recordS.BOF) Then
+    Do Until recordS.EOF = True
+        If IsEmpty(Trim(recordS.Fields("WBS element"))) Or Trim(recordS.Fields("WBS element")) = vbNullString Then
+        'Do Nothing
+        Else
+        
+        WBSarray(counter) = recordS.Fields("WBS element")
+        
+        End If
+        
+        'MsgBox ("WBSarray(counter) : " & WBSarray(counter))
+        counter = counter + 1                               'so by time loop done running the WBS element will have all of its WBS element names stored into the WBS array
+    
+        recordS.MoveNext
+    
+    Loop
+        
+    End If
+    
+    recordS.Close
+    Set recordS = Nothing
+    
+    'MsgBox ("counter: " & counter)
+    
+        row = 1
+        
+        j = 0
+        m = 0
+        
+        
+        
+    For z = 0 To counter
+        'SQL = "select [WBS element], SUM([Value TranCurr]) AS [SumValueTranCurr], " _
+        '& "MIN([TECO Date]) AS MIN, MAX([TECO Date]) AS MAX" _
+        '& "FROM ByAllOrders  GROUP BY [WBS element], [TECO Date]  ORDER BY [TECO Date] "
+        SQL = "SELECT ByAllOrders.[WBS element], Sum(ByAllOrders.[Value TranCurr]) AS SumValueTranCurr, Count(Order) As orderCount, SUM(DURATION) As TotalDuration, Min(ByAllOrders.[TECO Date]) AS [MIN], Max(ByAllOrders.[TECO Date]) AS [MAX] FROM ByAllOrders GROUP BY ByAllOrders.[WBS element];"
+        Set recordDates = CurrentDb.OpenRecordset(SQL)
+        
+        'SELECT ByAllOrders.[WBS element], Sum(ByAllOrders.[Value TranCurr]) AS SumValueTranCurr, Min(ByAllOrders.[TECO Date]) AS [MIN], Max(ByAllOrders.[TECO Date]) AS [MAX] FROM ByAllOrders GROUP BY ByAllOrders.[WBS element] ORDER BY Min(ByAllOrders.[TECO Date]);
+        
+        SQLTECO = "select [WBS element], [TECO Date], [Value TranCurr]" _
+        & "FROM ByAllOrders     ORDER BY [WBS element] DESC, [TECO Date] ASC;"
+        Set TECORecords = CurrentDb.OpenRecordset(SQLTECO)
+        
+        SQLTECO_START = "select [WBS element], [Start work date], [Value TranCurr]" _
+        & "FROM ByAllOrders     ORDER BY [WBS element] DESC, [Start work date] ASC;"
+        Set TECORecords_START = CurrentDb.OpenRecordset(SQLTECO_START)
+        
+        k = 0
+        Erase WBSDates          'every iteration of outer loop is a different WBSelement so we need to start dates with an empty array
+        total = 0
+        totalDuration = 0
+        TotalOrders = 0
+        
+        If Not recordDates.EOF And Not recordDates.BOF Then
+        
+            Do Until recordDates.EOF = True
+                WBSelement = recordDates.Fields("WBS element")
+                ValueTranCurr = recordDates.Fields("SumValueTranCurr")
+                Duration = recordDates.Fields("TotalDuration")
+                MIN = recordDates.Fields("MIN")
+                MAX = recordDates.Fields("MAX")
+                OrderCount = recordDates.Fields("orderCount")
+                
+                If k = 0 Then
+                    MINDate = recordDates.Fields("MIN")
+                    MAXDate = recordDates.Fields("MAX")
+                   
+                End If
+                
+                'MsgBox ("WBSarray(row - 1) : " & WBSarray(row - 1))
+                'MsgBox ("WBSelement: " & WBSelement)
+                If WBSarray(row - 1) = WBSelement Then
+                    If MIN < MINDate Then
+                        MINDate = MIN
+                    End If
+                    
+                    If MAX > MAXDate Then
+                        MAXDate = MAX
+                    End If
+                    
+                    total = total + ValueTranCurr
+                    totalDuration = totalDuration + Duration
+                    TotalOrders = TotalOrders + OrderCount
+                    k = k + 1
+                   
+                End If
+                
+                recordDates.MoveNext            'this advances the cursor & the record Set to next row
+               
+            Loop
+              
+            p = 0
+            weightedAvg = 0
+            weightedAvg_START = 0
+            Sum_Weights = 0
+          
+            
+            Do Until TECORecords.EOF = True
+                WBSelementTeco = TECORecords.Fields("WBS element")
+                TecoDate = TECORecords.Fields("TECO Date")
+                ValueTranCurr = TECORecords.Fields("Value TranCurr")
+                
+                If WBSelementTeco = WBSarray(z) Then
+                    WBSDates(p) = TecoDate    'we record the date of the row in the array to pull the element of the array into the row with the tecoDate
+
+                    weightedAvg = weightedAvg + ((p + 1) * ValueTranCurr)    'starting from row 1 we multiply row# by total
+                                                                             'tracks # of elements for e/WBS element
+                    p = p + 1
+                    Sum_Weights = Sum_Weights + p
+                    
+                End If
+                
+                TECORecords.MoveNext
+                
+                
+            Loop
+            
+            p = 0
+            
+            Do Until TECORecords_START.EOF = True
+                WBSelementTeco = TECORecords_START.Fields("WBS element")
+                ValueTranCurr = TECORecords_START.Fields("Value TranCurr")
+                StartDate = TECORecords_START.Fields("Start work date")
+                
+                If WBSelementTeco = WBSarray(z) Then
+                    WBSStartDates(p) = StartDate
+                    weightedAvg_START = weightedAvg_START + ((p + 1) * ValueTranCurr)    'starting from row 1 we multiply row# by total
+                                                                             'tracks # of elements for e/WBS element
+                    p = p + 1
+                End If
+                
+                TECORecords_START.MoveNext
+                
+            Loop
+            
+            On Error Resume Next
+            
+            If k = 0 Then
+                AvgValueTranCurr = total
+                AvgDuration = totalDuration
+            Else
+                AvgValueTranCurr = total / TotalOrders
+                AvgDuration = totalDuration / TotalOrders
+            End If
+
+            If total = 0 Then
+                weightedAvgTecoRow = 1
+                WeightedAvgStartRow = 1
+            Else
+                weightedAvgTecoRow = CLng(weightedAvg / total)    'IndexDateOfWeightedAvg _ divided sum of row * total divided by total to get identify which row has the weighted avg to be able to pull the date corresponding to that row
+                WeightedAvgStartRow = CLng(weightedAvg_START / total)
+            End If
+            
+            If weightedAvgTecoRow < 1 Then
+                weightedAvgTecoRow = 1
+            End If
+            
+            If WeightedAvgStartRow < 1 Then
+                WeightedAvgStartRow = 1
+            End If
+            
+            If Sum_Weights = 0 Then
+                WeightedAvgValueTranCurr = 0
+            Else
+                WeightedAvgValueTranCurr = weightedAvg / Sum_Weights
+            End If
+            
+            'MsgBox ("weightedAvgTecoRow: " & Round(weightedAvgTecoRow))
+            weightedAvgTecoDates(m) = WBSDates(weightedAvgTecoRow)  'IndexDateOfWeightedAvg _ pull the dates from that index & added it to another array which has all the weightedAvgTecoDates
+            weightedAvgStartDates(m) = WBSStartDates(WeightedAvgStartRow)
+            'MsgBox (weightedAvgTecoDates(m))
+            
+        End If
+    
+        'MsgBox (m)
+        'MsgBox (WBSarray(m))
+        ' WBSarray (m) & "', '" & weightedAvgTecoDates(m) & "');"
+         
+        'MsgBox (SQL)
+         
+        'SQL = "insert into RESULTS([WBS element], WeightedAvgTecoDate, SUM_ValueTranCurr, MIN_Date, MAX_Date) Values " & _
+        '"('" & WBSarray(m) & "', '" & weightedAvgTecoDates(m) & "', '" & total & "', '" & MINDate & "', '" & MAXDate & "');"
+        'CurrentDb.Execute SQL, dbFailOnError
+        
+        SQL = "insert into RESULTS([WBS element], WeightedAvgTecoDate, [WeightedAvgStartDate], SUMValueTranCurr, AvgValueTranCurr, SumDuration, AvgDuration, MINDate, MAXDate, WeightedAvgValueTranCurr, OrderCount) Values " & _
+        "('" & WBSarray(m) & "', '" & weightedAvgTecoDates(m) & "', '" & weightedAvgStartDates(m) & "', '" & total & "', '" & AvgValueTranCurr & "', '" & totalDuration & "', '" & AvgDuration & "', '" & MINDate & "', '" & MAXDate & "', '" & WeightedAvgValueTranCurr & "', '" & TotalOrders & "');"
+        CurrentDb.Execute SQL, dbFailOnError
+
+                    
+
+        i = i + 1
+        row = row + 1
+        m = m + 1
+        
+               
+        
+        recordDates.Close
+        Set recordDates = Nothing
+        
+        TECORecords.Close
+        Set TECORecords = Nothing
+        
+        TECORecords_START.Close
+        Set TECORecords_START = Nothing
+        
+    Next
+   
+            
+End Sub
+
+
+
+
+
+
+
+_____________________________________
+
+_____________________________________
+previously when did correl 1-by-1
+
+SELECT (Avg(X * Y) - Avg(X) * Avg(Y)) / (StDevP(X) * StDevP(Y)) AS Correlation FROM Set1 ;
+
+---------------------------
+SELECT (Avg ([Value TranCurr] * DURATION) - Avg([Value TranCurr]) * Avg(DURATION)) / (StDevP([Value TranCurr]) * StDevP(DURATION)) AS Correlation
+FROM SourceToCorrel_ui-n0028;
+
+
+
+step1:  Setup source query (e.g. Source2CorrUIN0028)
+
+	which is - 
+
+	SELECT [1_DurationAllOrders(Sheet1-KOK5)TABLE].[WBS element], [1_DurationAllOrders(Sheet1-KOK5)TABLE].[Start work date], [1_DurationAllOrders(Sheet1-KOK5)TABLE].[TECO Date], [1_DurationAllOrders(Sheet1-KOK5)TABLE].[Technical completion], [1_DurationAllOrders(Sheet1-KOK5)TABLE].[Value TranCurr], [1_DurationAllOrders(Sheet1-KOK5)TABLE].Order, [1_DurationAllOrders(Sheet1-KOK5)TABLE].Company, [1_DurationAllOrders(Sheet1-KOK5)TABLE].[Company Code], [1_DurationAllOrders(Sheet1-KOK5)TABLE].DURATION, [1_DurationAllOrders(Sheet1-KOK5)TABLE].Description, [1_DurationAllOrders(Sheet1-KOK5)TABLE].[Business Area]
+	FROM [1_DurationAllOrders(Sheet1-KOK5)TABLE]
+	WHERE ((([1_DurationAllOrders(Sheet1-KOK5)TABLE].[WBS element])="ui-n0028"));
+
+
+step2:	Create Correlation query (e.g. SourceCorrOutputUIn0028)
+
+	which is -
+
+	SELECT (Avg ([Value TranCurr] * DURATION) - Avg([Value TranCurr]) * Avg(DURATION)) / (StDevP([Value TranCurr]) * StDevP(DURATION)) AS Correlation
+	FROM Source2CorrUIN0028;
+
+step3:	Run !
+
+
+_________________
+- DoesNotExist:
+	If a standard deviation is zero and thereby get a 
+	division by zero recalling the following correl formula:
+		SELECT (Avg(X * Y) - Avg(X) * Avg(Y)) / (StDevP(X) * StDevP(Y)) AS Correlation FROM Set1 ;
+
+
+- -1/1 if you only have 2 records 
+	then they automatically move perfectly
+	together because there are no additional
+	datapoints to evaluate them together.
+
+	Thus if you have 1 order# that is increasing and the
+	other is increasing is increasing then 
+	that is a 1
+
+	if you have 1 that is increasing and the
+	other is decreasing then that is a -1
+
+	if you have 1 that is decreasing and
+	the other is decreasing then that is a 1		
+
+
+
+
+
+
+
+
+
