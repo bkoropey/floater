@@ -1,0 +1,56 @@
+Option Explicit
+Sub SolverLoop()
+
+    SolverOk SetCell:="$T$22", MaxMinVal:=2, ValueOf:="0", ByChange:="$Q$2:$Q$10"
+    SolverAdd CellRef:="$Q$2", Relation:=3, FormulaText:="0"
+    SolverAdd CellRef:="$Q$3", Relation:=3, FormulaText:="0"
+    SolverAdd CellRef:="$Q$4", Relation:=3, FormulaText:="0"
+    SolverAdd CellRef:="$Q$5", Relation:=3, FormulaText:="0"
+    SolverAdd CellRef:="$Q$6", Relation:=3, FormulaText:="0"
+    SolverAdd CellRef:="$Q$7", Relation:=3, FormulaText:="0"
+    SolverAdd CellRef:="$Q$8", Relation:=3, FormulaText:="0"
+    SolverAdd CellRef:="$Q$9", Relation:=3, FormulaText:="0"
+    SolverAdd CellRef:="$Q$10", Relation:=3, FormulaText:="0"
+
+    SolverAdd CellRef:="$T$6", Relation:=2, FormulaText:="=1"
+    SolverAdd CellRef:="$T$11", Relation:=2, FormulaText:="$U$11"
+    
+          
+    SolverSolve UserFinish:=True
+    
+    
+    SolverReset    
+    
+End Sub
+
+____________________________________________________
+
+Sub ProbsSummer()
+Worksheets("Sheet1").Range("U7").Formula = "=AVERAGE(R4:R9)"
+Worksheets("Sheet1").Range("U9").Formula = "=STDEV(R4:R9)"
+Worksheets("Sheet1").Range("T3") = "P90"
+Worksheets("Sheet1").Range("U3") = "P50"
+Worksheets("Sheet1").Range("V3") = "P10"
+Worksheets("Sheet1").Range("T4").Formula = "=NORMSINV(1-(RIGHT(T$3,2)/100))*$U$9+$U$7"
+Worksheets("Sheet1").Range("U4").Formula = "=NORMSINV(1-(RIGHT(U$3,2)/100))*$U$9+$U$7"
+Worksheets("Sheet1").Range("V4").Formula = "=NORMSINV(1-(RIGHT(V$3,2)/100))*$U$9+$U$7"
+Worksheets("Sheet1").Range("T4:V9").Copy
+Worksheets("Sheet1").Range("T4:V9").PasteSpecial Paste:=xlPasteValues
+Worksheets("Sheet1").Range("U9").Clear
+Worksheets("Sheet1").Range("U9").Select
+
+End Sub
+
+
+Sub Refresh2()
+Worksheets("Sheet1").Range("T3:V9").Select
+    Selection.ClearContents
+Worksheets("Sheet1").Range("R4:R9").Select
+
+
+
+End Sub
+
+
+
+
