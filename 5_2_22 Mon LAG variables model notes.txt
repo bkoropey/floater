@@ -1,0 +1,140 @@
+we know from the trough that our MetrixND has been
+over-forecasting by about 11% b/w HE12 & HE16.
+
+go down to TransformationTables 
+	- Right Click - Insert Object - select TransformTable
+	- NAME: LagHR12 
+	- Formula: Lag(drag-in HR12 from LoadsGoldhill, 1)
+		- OK
+	
+	- Right Click on Trans1 - RightClick OPEN
+	- within Transform Table: Trans1
+		 RightClick - Insert New Transform
+	- then enter new name: LagHR12Saturday
+	- formula: drag-in Trans1_LagHR12 * drag-in Daytype_Saturday
+		- OK
+
+	- Right Click on Trans1 - RightClick OPEN
+	- within Transform Table: Trans1
+		 RightClick - Insert New Transform
+	- then enter new name: LagHR12Sunday
+	- formula: drag-in Trans1_LagHR12 * drag-in Daytype_Sunday
+		- OK
+
+
+	- Right Click on Trans1 - RightClick OPEN
+	- within Transform Table: Trans1
+		 RightClick - Insert New Transform
+	- then enter new name: LagHR12Sunday
+	- formula: drag-in Trans1_LagHR12 * drag-in Daytype_Sunday
+		- OK
+
+
+
+	- Right Click on Trans1 - RightClick OPEN
+	- within Transform Table: Trans1
+		 RightClick - Insert New Transform
+	- then enter new name: LagHR12Monday_April
+	- formula: 
+drag-in Trans1_LagHR12 * drag-in Daytype_Monday * drag-in Daytype_April
+		- OK
+
+
+
+
+THEN we goto the MODELs section and open 
+	GoldHillHourlyModel_Model12 to run
+	and see T-Stats & .. for significance of impact
+	under each of our added variables.
+
+
+THEN goto your Trans1 and drag-in each of your 6
+	new TransformationTables e.g. LagHR12...
+
+	into MODEL12 X_variables screen:
+
+then within X_variables screen Run the Glasses
+
+	- within COEF tab see CDD & HDD EnergyPredicted
+	  as well as your new Trans1.LagHR12 & 
+	  Trans1.LagHR12Saturday and other 
+	  within Coefficients column and 
+	  within T-Stat column 
+
+	  then goto MStat tab to see 
+	  value in MAPE e.g. 7.17% to see if overall
+	  its been reduced.
+
+
+then remove them one-by-one to see effect on reducing
+	MAPE
+
+--------------------
+
+Existing model with no added new variables
+  MStat:  MAPE=8.47%
+  Coef:   EnergyPredicted.GoldHillEnergyPredicted = -13.659 coef
+				       TStat	  = -2.564
+	  EnergyPredicted.GoldHillEnergy_CDD 	  = 5.274 coef
+				       TStat 	  = 1.592 tstat
+	  EnergyPredicted.GoldHillEnergy_HDD 	  = 1.638 coef
+				       TStat 	  = 6.518 tsat
+	  EnergyPredicted.LagGoldHillEnergyPredicted = 15.281 coef
+				       TStat	  = 3.70  tstat
+
+
+Existing model with added 
+	LagHR12
+  MStat: MAPE=7.18%	(down from 8.47%)
+  Coef:   EnergyPredicted.GoldHillEnergyPredicted = -7.634 coe-f
+				       TStat	  = -1.574  tstat
+          EnergyPredicted.GoldHillEnergy_CDD 	  = 5.674 coef
+				       TStat 	  = 1.886 tstat
+	  EnergyPredicted.GoldHillEnergy_HDD 	  = 1.546 coef
+				       TStat 	  = 6.772 tsat
+	  EnergyPredicted.LagGoldHillEnergyPredicted = 8.096 coef
+				       TStat	  = 3.772  tstat
+
+
+Existing model with added 
+	+ LagHR12 + LagHR12Saturday
+  MStat: MAPE=7.17%	(down from 7.18%)
+
+
+
+Existing model with added
+	+ LagHR12 + LagHR12Saturday + LagHR12Monday_April
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

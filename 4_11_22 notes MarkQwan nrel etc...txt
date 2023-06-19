@@ -1,0 +1,19 @@
+
+Take avg weekly shape for April 2022 with April 2021 
+and same for March weekday shape for Mar 2022 & Mar 2021  
+
+
+
+Borrowa wastewater facility - added significant solar to add to model
+
+speak to Connie on total installed capacity to obtain solar capacity
+	to update column E of SolarProfile
+
+
+	use NREL PVWatts calc 
+
+https://pvwatts.nrel.gov/pvwatts.php
+
+________________
+
+
